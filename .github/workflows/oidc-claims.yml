@@ -24,24 +24,32 @@ jobs:
           token="$(jq -r '.value' <<<"${response}")"
           echo "::add-mask::${token}"
 
-          payload="$(cut -d '.' -f 2 <<<"${token}" | tr '_-' '/+')"
-          padding=$(( (4 - ${#payload} % 4) % 4 ))
-          payload="${payload}$(printf '=%.0s' $(seq 1 "${padding}"))"
+          TOKEN="${token}" python3 - <<'PY'
+          import base64
+          import json
+          import os
 
-          echo "${payload}" | base64 -d | jq '{
-            iss,
-            aud,
-            sub,
-            repository,
-            repository_owner,
-            repository_id,
-            ref,
-            ref_type,
-            workflow,
-            job_workflow_ref,
-            actor,
-            event_name,
-            run_id,
-            run_attempt,
-            environment
-          }'
+          token = os.environ["TOKEN"]
+          payload = token.split(".")[1]
+          payload += "=" * (-len(payload) % 4)
+          claims = json.loads(base64.urlsafe_b64decode(payload))
+
+          keys = [
+              "iss",
+              "aud",
+              "sub",
+              "repository",
+              "repository_owner",
+              "repository_id",
+              "ref",
+              "ref_type",
+              "workflow",
+              "job_workflow_ref",
+              "actor",
+              "event_name",
+              "run_id",
+              "run_attempt",
+              "environment",
+          ]
+          print(json.dumps({key: claims.get(key) for key in keys}, indent=2))
+          PY

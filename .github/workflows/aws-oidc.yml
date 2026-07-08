@@ -1,0 +1,34 @@
+name: AWS OIDC Lab
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  aws-identity:
+    name: Assume AWS role with GitHub OIDC
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check required repository variables
+        shell: bash
+        env:
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          set -euo pipefail
+          test -n "${AWS_ROLE_ARN}" || { echo "Missing repository variable AWS_ROLE_ARN"; exit 1; }
+          test -n "${AWS_REGION}" || { echo "Missing repository variable AWS_REGION"; exit 1; }
+
+      - name: Configure AWS credentials from OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Show assumed AWS identity
+        shell: bash
+        run: aws sts get-caller-identity
